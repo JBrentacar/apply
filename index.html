@@ -227,13 +227,13 @@
         <!-- 配送サービス -->
         <div id="delivery-service-group" class="form-group hidden">
           <label>配送サービス利用の有無 <span style="color:red">*</span></label>
-          <input type="radio" id="del-yes" name="配送サービス利用の有無" value="利用する"><label for="del-yes" style="font-weight:normal; display:inline;">利用する</label>
-          <input type="radio" id="del-no"  name="配送サービス利用の有無" value="利用しない" checked><label for="del-no"  style="font-weight:normal; display:inline;">利用しない</label>
+          <input type="radio" id="del-yes" name="配送サービス利用の有無" value="利用する" required><label for="del-yes" style="font-weight:normal; display:inline;">利用する</label>
+          <input type="radio" id="del-no"  name="配送サービス利用の有無" value="利用しない"><label for="del-no"  style="font-weight:normal; display:inline;">利用しない</label>
         </div>
         <!-- 配送場所 -->
         <div id="location-group" class="form-group hidden">
           <label>配送場所 <span style="color:red">*</span></label>
-          <input type="radio" id="loc-same"     name="配送場所" value="住所と同じ" checked><label for="loc-same"     style="font-weight:normal; display:inline;">住所と同じ</label>
+          <input type="radio" id="loc-same"     name="配送場所" value="住所と同じ" required><label for="loc-same"     style="font-weight:normal; display:inline;">住所と同じ</label>
           <input type="radio" id="loc-different"name="配送場所" value="住所と異なる"><label for="loc-different"style="font-weight:normal; display:inline;">住所と異なる</label>
         </div>
         <div id="delivery-address-group" class="form-group hidden">
@@ -441,7 +441,7 @@
 
   // 来店時刻プルダウン
   function populateVisitTimes(){
-    visitSel.innerHTML = '';
+    visitSel.innerHTML = '<option value="">選択してください</option>';
     const sd = document.getElementById('start-date').value;
     const d  = sd ? new Date(sd) : new Date();
     const day = d.getDay();
@@ -457,7 +457,7 @@
 
   // 配送時間プルダウン
   function populateDeliveryTimes(){
-    delTimeSel.innerHTML = '';
+    delTimeSel.innerHTML = '<option value="">選択してください</option>';
     for(let h = 10; h < 17; h++){
       const o1 = `${String(h).padStart(2,'0')}:00〜${String(h).padStart(2,'0')}:30`;
       const o2 = `${String(h).padStart(2,'0')}:30〜${String(h+1).padStart(2,'0')}:00`;
