@@ -258,6 +258,7 @@
       <!-- Step 6 -->
       <div class="form-step" data-step="6">
         <p>運転者様に事故等が発生した場合に使用する連絡先</p>
+        <p class="note" style="color:#d32f2f; font-weight:bold; margin-bottom:15px;">※ ご契約者様以外の連絡先をご記入ください</p>
         <div class="form-group"><label for="e-name">お名前 <span style="color:red">*</span></label><input type="text" id="e-name" name="緊急連絡先_お名前" required></div>
         <div class="form-group"><label for="e-name-kana">お名前（フリガナ） <span style="color:red">*</span></label><input type="text" id="e-name-kana" name="緊急連絡先_お名前（フリガナ）" required></div>
         <div class="form-group"><label for="e-tel">電話番号 <span style="color:red">*</span></label><input type="tel" id="e-tel" name="緊急連絡先_電話番号" pattern="\d+" required></div>
@@ -383,8 +384,48 @@
 
   // 「次へ」ボタン活性チェック
   function updateNext(){
-    const fields = Array.from(steps[idx].querySelectorAll('input,select,textarea'));
-    nexts[idx].disabled = !fields.every(f => f.disabled || f.checkValidity());
+    const currentStep = steps[idx];
+    if (!currentStep) return;
+    
+    // 現在のステップ内の必須フィールド（visible かつ disabled でないもの）を取得
+    const fields = Array.from(currentStep.querySelectorAll('input[required],select[required],textarea[required]'));
+    const visibleRequiredFields = fields.filter(f => {
+      if (f.disabled) return false;
+      
+      // 親要素が hidden かチェック
+      let parent = f.parentElement;
+      while (parent && parent !== currentStep) {
+        if (parent.classList.contains('hidden') || parent.style.display === 'none') {
+          return false;
+        }
+        parent = parent.parentElement;
+      }
+      return true;
+    });
+    
+    // チェックボックス・ラジオボタンの特別処理
+    let allValid = visibleRequiredFields.every(field => {
+      if (field.type === 'checkbox') {
+        return field.checked;
+      } else if (field.type === 'radio') {
+        // 同じ name のラジオボタングループで1つでもチェックされているか
+        const radioGroup = currentStep.querySelectorAll(`input[name="${field.name}"]`);
+        return Array.from(radioGroup).some(r => r.checked);
+      } else {
+        // 通常の入力フィールド
+        return field.value.trim() !== '' && field.checkValidity();
+      }
+    });
+    
+    // Step 4 (オプション選択) の特別処理
+    if (idx === 3) {
+      const anyOptionChecked = Array.from(currentStep.querySelectorAll('input[type="checkbox"]')).some(cb => cb.checked);
+      allValid = anyOptionChecked;
+    }
+    
+    if (nexts[idx]) {
+      nexts[idx].disabled = !allValid;
+    }
   }
 
   // 返却日計算
