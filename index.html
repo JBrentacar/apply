@@ -139,9 +139,9 @@
     </div>
 
     <div class="option-row">
-      <span>スタッドレスタイヤ期間延長オプション</span>
+      <span>スタッドレスタイヤ</span>
       <label class="switch">
-        <input type="checkbox" id="opt-tire" name="オプション[]" value="スタッドレスタイヤ期間延長オプション">
+        <input type="checkbox" id="opt-tire" name="オプション[]" value="スタッドレスタイヤ">
         <span class="slider"></span>
       </label>
     </div>
@@ -171,25 +171,11 @@
     </div>
   </div>
 
-  <div class="option-notice">
-    <p class="note" style="margin-bottom: 10px;">
-      空き状況によりご案内不可のオプションもございます。
-    </p>
-    <div class="tire-notice">
-      <p style="font-weight: bold; color: #d9534f; margin-bottom: 8px;">【重要】スタッドレスタイヤについて</p>
-      <p style="margin-bottom: 8px; padding-left: 10px; border-left: 4px solid #ffc107; background-color: #fff3cd; padding: 10px;">
-        12月〜3月は必須装備のため、通常はチェック不要です
-      </p>
-      <p style="font-weight: 600; color: #1976D2; margin-bottom: 5px;">このオプションをチェックする場合：</p>
-      <ul style="list-style: none; padding-left: 10px; margin: 0;">
-        <li>✓ 11月から着用したい</li>
-        <li>✓ 4月以降も継続して着用したい</li>
-      </ul>
-    </div>
-    <p class="note" style="margin-top: 10px; color: #d32f2f;">
-      ご契約途中での加入は出来かねます。ご注意ください。
-    </p>
-  </div>
+  <p class="note">
+    空き状況によりご案内不可のオプションもございます。<br>
+    スタッドレスタイヤは12月～3月の間、必須オプションとなります。
+    ご契約途中での加入は出来かねます。ご注意ください。
+  </p>
 
   <div class="button-group">
     <button type="button" class="btn-prev">戻る</button>
@@ -625,6 +611,30 @@
     }
   });
 
+  // Step4: スタッドレスタイヤの確認ポップアップ
+  optTire.addEventListener('change', (e) => {
+    if(optTire.checked) {
+      // チェックを一旦解除
+      optTire.checked = false;
+      
+      // 確認ダイアログの表示
+      const message = `【重要】スタッドレスタイヤについて\n\n12月〜3月は必須装備のため、通常はチェック不要です\n\nこのオプションをチェックする場合：\n✓ 11月から着用したい\n✓ 4月以降も継続して着用したい\n\nスタッドレスタイヤのオプションを付けますか？`;
+      
+      if(confirm(message)) {
+        // 「OK」が押された場合、チェックを入れる
+        optTire.checked = true;
+        if(optNone.checked) optNone.checked = false;
+        updateNext();
+      } else {
+        // 「キャンセル」が押された場合、チェックを外したまま
+        updateNext();
+      }
+    } else {
+      // チェックを外す場合は通常通り
+      updateNext();
+    }
+  });
+
   // Step4: オプション排他制御
   optNone.addEventListener('change', () => {
     if(optNone.checked) others.forEach(o => o.checked = false);
@@ -632,6 +642,8 @@
   });
   others.forEach(o => {
     if(!o) return;
+    // スタッドレスタイヤ以外の処理
+    if(o === optTire) return; // スタッドレスタイヤは上で処理済み
     o.addEventListener('change', () => {
       if(o.checked) optNone.checked = false;
       updateNext();
