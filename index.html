@@ -123,6 +123,7 @@
               <input type="text" id="p-license" name="運転免許証番号" maxlength="12" pattern="\d{12}" required>
               <span class="license-status empty" id="license-status">-</span>
             </div>
+            <small class="note" id="license-error" style="color:#f44336; display:none; font-weight:bold;">番号入力に誤りがあります</small>
           </div>
         </div>
         <div id="corporate-info">
@@ -389,6 +390,7 @@
   // 免許証番号
   const pLicense = document.getElementById('p-license');
   const licenseStatus = document.getElementById('license-status');
+  const licenseError = document.getElementById('license-error');
 
   // Step4 オプション排他制御
   const optNone      = document.getElementById('opt-none');
@@ -441,6 +443,7 @@
       // 未入力
       licenseStatus.textContent = '-';
       licenseStatus.className = 'license-status empty';
+      licenseError.style.display = 'none';
       pLicense.setCustomValidity('');
     } else if (value.length === 12) {
       // 12桁入力済み - チェックデジット検証
@@ -448,17 +451,20 @@
         // 検証OK
         licenseStatus.textContent = '○';
         licenseStatus.className = 'license-status valid';
+        licenseError.style.display = 'none';
         pLicense.setCustomValidity('');
       } else {
         // 検証NG
         licenseStatus.textContent = '✕';
         licenseStatus.className = 'license-status invalid';
+        licenseError.style.display = 'block';
         pLicense.setCustomValidity('運転免許証番号が正しくありません');
       }
     } else {
       // 入力途中
       licenseStatus.textContent = '-';
       licenseStatus.className = 'license-status empty';
+      licenseError.style.display = 'none';
       pLicense.setCustomValidity('12桁の数字を入力してください');
     }
     
