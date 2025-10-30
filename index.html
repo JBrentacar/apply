@@ -58,6 +58,31 @@
 .radio-row input[type="radio"] {
   margin-right: 0.5rem;
 }
+/* 運転免許証番号の検証アイコン */
+.license-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.license-input-wrapper input {
+  flex: 1;
+}
+.license-status {
+  font-size: 24px;
+  font-weight: bold;
+  min-width: 30px;
+  text-align: center;
+}
+.license-status.empty {
+  color: #999;
+}
+.license-status.valid {
+  color: #4caf50;
+}
+.license-status.invalid {
+  color: #f44336;
+}
 
     
   </style>
@@ -92,7 +117,13 @@
           <div class="form-group"><label for="p-building">建物名</label><input type="text" id="p-building" name="建物名"></div>
           <div class="form-group"><label for="p-tel">携帯電話番号 <span style="color:red">*</span></label><input type="tel" id="p-tel" name="携帯電話番号" pattern="\d+" required></div>
           <div class="form-group"><label for="p-email">メールアドレス <span style="color:red">*</span></label><input type="email" id="p-email" name="メールアドレス" required></div>
-          <div class="form-group"><label for="p-license">運転免許証番号<br><span style="font-size:0.9em">免許証表面の12ケタの番号</span> <span style="color:red">*</span></label><input type="text" id="p-license" name="運転免許証番号" required></div>
+          <div class="form-group">
+            <label for="p-license">運転免許証番号<br><span style="font-size:0.9em">免許証表面の12ケタの番号</span> <span style="color:red">*</span></label>
+            <div class="license-input-wrapper">
+              <input type="text" id="p-license" name="運転免許証番号" maxlength="12" pattern="\d{12}" required>
+              <span class="license-status empty" id="license-status">-</span>
+            </div>
+          </div>
         </div>
         <div id="corporate-info">
           <!-- 法人情報 -->
@@ -357,6 +388,7 @@
 
   // 免許証番号
   const pLicense = document.getElementById('p-license');
+  const licenseStatus = document.getElementById('license-status');
 
   // Step4 オプション排他制御
   const optNone      = document.getElementById('opt-none');
@@ -376,6 +408,62 @@
   const increase = document.getElementById('days-increase');
 
   let idx = 0;
+
+  // 運転免許証番号のチェックデジット検証
+  function validateLicenseNumber(licenseNumber) {
+    // 数字のみ12桁かチェック
+    if (!/^\d{12}$/.test(licenseNumber)) {
+      return false;
+    }
+
+    // チェックデジット計算
+    const weights = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    
+    for (let i = 0; i < 10; i++) {
+      sum += parseInt(licenseNumber[i]) * weights[i];
+    }
+    
+    const remainder = sum % 11;
+    const checkDigit = 11 - remainder;
+    
+    // 11桁目（最後から2番目）と比較
+    const expectedCheckDigit = parseInt(licenseNumber[10]);
+    
+    return checkDigit === expectedCheckDigit;
+  }
+
+  // 免許証番号の検証状態を更新
+  function updateLicenseStatus() {
+    const value = pLicense.value.trim();
+    
+    if (value === '') {
+      // 未入力
+      licenseStatus.textContent = '-';
+      licenseStatus.className = 'license-status empty';
+      pLicense.setCustomValidity('');
+    } else if (value.length === 12) {
+      // 12桁入力済み - チェックデジット検証
+      if (validateLicenseNumber(value)) {
+        // 検証OK
+        licenseStatus.textContent = '○';
+        licenseStatus.className = 'license-status valid';
+        pLicense.setCustomValidity('');
+      } else {
+        // 検証NG
+        licenseStatus.textContent = '✕';
+        licenseStatus.className = 'license-status invalid';
+        pLicense.setCustomValidity('運転免許証番号が正しくありません');
+      }
+    } else {
+      // 入力途中
+      licenseStatus.textContent = '-';
+      licenseStatus.className = 'license-status empty';
+      pLicense.setCustomValidity('12桁の数字を入力してください');
+    }
+    
+    updateNext();
+  }
 
   // 進捗バー更新
   function updateProgress(){
@@ -587,6 +675,15 @@
     form.submit();
   }
 });
+  // 免許証番号の入力イベント
+  pLicense.addEventListener('input', (e) => {
+    // 数字のみ許可
+    e.target.value = e.target.value.replace(/\D/g, '');
+    updateLicenseStatus();
+  });
+  
+  pLicense.addEventListener('blur', updateLicenseStatus);
+
   // 入力欄にイベント登録
   steps.forEach(step => {
     step.querySelectorAll('input,select,textarea').forEach(el => {
