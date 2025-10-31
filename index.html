@@ -901,7 +901,8 @@
       if(btn.disabled) return;
       if(i === 4)      idx = 5;   // Step5 → Step5.5
       else if(i === 5) idx = 5.75; // Step5.5 → Step5.75
-      else if(i === 5.75) idx = 6; // Step5.75 → Step6
+      else if(i === 6) idx = 6;    // Step5.75 → Step6
+      else if(i === 7) idx = 7;    // Step6 → Step7
       else             idx = i + 1;
       show(idx);
     });
