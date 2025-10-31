@@ -262,27 +262,6 @@
           <input type="radio" id="del-yes" name="配送サービス利用の有無" value="利用する" required><label for="del-yes" style="font-weight:normal; display:inline;">利用する</label>
           <input type="radio" id="del-no"  name="配送サービス利用の有無" value="利用しない"><label for="del-no"  style="font-weight:normal; display:inline;">利用しない</label>
         </div>
-        
-        <!-- 車両回収サービス -->
-        <div id="pickup-service-group" class="form-group hidden">
-          <label>返却時、車両回収サービス（有料） <span style="color:red">*</span></label>
-          <input type="radio" id="pickup-yes" name="車両回収サービス利用の有無" value="利用する" required><label for="pickup-yes" style="font-weight:normal; display:inline;">利用する</label>
-          <input type="radio" id="pickup-no" name="車両回収サービス利用の有無" value="利用しない"><label for="pickup-no" style="font-weight:normal; display:inline;">利用しない</label>
-        </div>
-        
-        <!-- 回収先郵便番号 -->
-        <div id="pickup-postal-group" class="form-group hidden">
-          <label for="pickup-postal">回収先の郵便番号（7桁） <span style="color:red">*</span></label>
-          <input type="text" id="pickup-postal" name="回収先郵便番号" maxlength="7" pattern="\d{7}" placeholder="例：9860814">
-          <div id="pickup-address-display" style="margin-top:8px; padding:8px; background:#f0f0f0; border-radius:4px; display:none;">
-            <span id="pickup-address-text"></span>
-          </div>
-          <p class="note" style="margin-top:8px;">
-            返却時にお客様のご指定場所まで車両を回収に伺います。<br>
-            ・料金：回収場所により異なります<br>
-            ・対応日時：水曜日を除く平日 10:30～16:30
-          </p>
-        </div>
         <!-- 配送場所 -->
         <div id="location-group" class="form-group hidden">
           <label>配送場所 <span style="color:red">*</span></label>
@@ -303,6 +282,30 @@
           <label>ご来店予定時刻 <span style="color:red">*</span></label>
           <select id="visit-time-select" name="来店予定時刻" required></select>
           <p class="note">営業時間 平日 9:00〜18:00（水曜除く）／土日 10:00〜16:00（定休日：水・祝日）</p>
+        </div>
+        <div class="button-group"><button type="button" class="btn-prev">戻る</button><button type="button" class="btn-next" disabled>次へ</button></div>
+      </div>
+
+      <!-- Step 5.75 車両回収サービス -->
+      <div class="form-step" data-step="5.75" id="step5-75">
+        <div class="form-group">
+          <label>返却時、車両回収サービス（有料） <span style="color:red">*</span></label>
+          <input type="radio" id="pickup-yes" name="車両回収サービス利用の有無" value="利用する" required><label for="pickup-yes" style="font-weight:normal; display:inline;">利用する</label>
+          <input type="radio" id="pickup-no" name="車両回収サービス利用の有無" value="利用しない"><label for="pickup-no" style="font-weight:normal; display:inline;">利用しない</label>
+        </div>
+        
+        <!-- 回収先郵便番号 -->
+        <div id="pickup-postal-group" class="form-group hidden">
+          <label for="pickup-postal">回収先の郵便番号（7桁） <span style="color:red">*</span></label>
+          <input type="text" id="pickup-postal" name="回収先郵便番号" maxlength="7" pattern="\d{7}" placeholder="例：9860814">
+          <div id="pickup-address-display" style="margin-top:8px; padding:8px; background:#f0f0f0; border-radius:4px; display:none;">
+            <span id="pickup-address-text"></span>
+          </div>
+          <p class="note" style="margin-top:8px;">
+            返却時にお客様のご指定場所まで車両を回収に伺います。<br>
+            ・料金：回収場所により異なります<br>
+            ・対応日時：水曜日を除く平日 10:30～16:30
+          </p>
         </div>
         <div class="button-group"><button type="button" class="btn-prev">戻る</button><button type="button" class="btn-next" disabled>次へ</button></div>
       </div>
@@ -621,7 +624,17 @@
   // ステップ表示切り替え
   function show(i){
     currentStepIndex = i;
-    steps.forEach((s,j) => s.classList.toggle('active', j === i));
+    
+    // ステップのインデックスマッピング
+    const stepMap = {
+      0: 0, 1: 1, 2: 2, 3: 3, 4: 4,
+      5: 5, 5.75: 6, 6: 7, 7: 8
+    };
+    
+    steps.forEach((s,j) => {
+      const stepAttr = s.getAttribute('data-step');
+      s.classList.toggle('active', stepMap[i] === j);
+    });
     updateProgress();
 
     // Step2: 個人／法人 切り替え
@@ -636,9 +649,11 @@
     }
 
     // Step5.5: 一旦隠す
+    const step55 = document.getElementById('step5-5');
+    const step575 = document.getElementById('step5-75');
     step55.style.display = 'none';
-    const pickupGrp = document.getElementById('pickup-service-group');
-    [visitGrp, delSvcGrp, locGrp, addrGrp, delTimeGrp, pickupGrp, pickupPostalGrp].forEach(el => el.classList.add('hidden'));
+    step575.style.display = 'none';
+    [visitGrp, delSvcGrp, locGrp, addrGrp, delTimeGrp, pickupPostalGrp].forEach(el => el.classList.add('hidden'));
 
     // Step5.5: 日数に応じ切り替え
     if(i === 5){
@@ -649,12 +664,16 @@
         populateVisitTimes();
       } else {
         delSvcGrp.classList.remove('hidden');
-        pickupGrp.classList.remove('hidden'); // 車両回収サービスを表示
         if(document.getElementById('del-no').checked){
           visitGrp.classList.remove('hidden');
           populateVisitTimes();
         }
       }
+    }
+
+    // Step5.75: 車両回収サービス
+    if(i === 5.75){
+      step575.style.display = 'block';
     }
 
     // Step5: 7日未満は丸め
@@ -871,15 +890,21 @@
   nexts.forEach((btn,i) => {
     btn.addEventListener('click', () => {
       if(btn.disabled) return;
-      if(i === 4)      idx = 5;
-      else if(i === 5) idx = 6;
+      if(i === 4)      idx = 5;   // Step5 → Step5.5
+      else if(i === 5) idx = 5.75; // Step5.5 → Step5.75
+      else if(i === 5.75) idx = 6; // Step5.75 → Step6
       else             idx = i + 1;
       show(idx);
     });
   });
   prevs.forEach(btn => {
     btn.addEventListener('click', () => {
-      if(idx > 0) { idx--; show(idx); }
+      if(idx > 0) {
+        if(idx === 5.75) idx = 5;      // Step5.75 → Step5.5
+        else if(idx === 6) idx = 5.75; // Step6 → Step5.75
+        else idx--;
+        show(idx);
+      }
     });
   });
 
