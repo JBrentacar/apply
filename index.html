@@ -262,6 +262,27 @@
           <input type="radio" id="del-yes" name="配送サービス利用の有無" value="利用する" required><label for="del-yes" style="font-weight:normal; display:inline;">利用する</label>
           <input type="radio" id="del-no"  name="配送サービス利用の有無" value="利用しない"><label for="del-no"  style="font-weight:normal; display:inline;">利用しない</label>
         </div>
+        
+        <!-- 車両回収サービス -->
+        <div id="pickup-service-group" class="form-group hidden">
+          <label>返却時、車両回収サービス（有料） <span style="color:red">*</span></label>
+          <input type="radio" id="pickup-yes" name="車両回収サービス利用の有無" value="利用する" required><label for="pickup-yes" style="font-weight:normal; display:inline;">利用する</label>
+          <input type="radio" id="pickup-no" name="車両回収サービス利用の有無" value="利用しない"><label for="pickup-no" style="font-weight:normal; display:inline;">利用しない</label>
+        </div>
+        
+        <!-- 回収先郵便番号 -->
+        <div id="pickup-postal-group" class="form-group hidden">
+          <label for="pickup-postal">回収先の郵便番号（7桁） <span style="color:red">*</span></label>
+          <input type="text" id="pickup-postal" name="回収先郵便番号" maxlength="7" pattern="\d{7}" placeholder="例：9860814">
+          <div id="pickup-address-display" style="margin-top:8px; padding:8px; background:#f0f0f0; border-radius:4px; display:none;">
+            <span id="pickup-address-text"></span>
+          </div>
+          <p class="note" style="margin-top:8px;">
+            返却時にお客様のご指定場所まで車両を回収に伺います。<br>
+            ・料金：回収場所により異なります<br>
+            ・対応日時：水曜日を除く平日 10:30～16:30
+          </p>
+        </div>
         <!-- 配送場所 -->
         <div id="location-group" class="form-group hidden">
           <label>配送場所 <span style="color:red">*</span></label>
@@ -616,7 +637,8 @@
 
     // Step5.5: 一旦隠す
     step55.style.display = 'none';
-    [visitGrp, delSvcGrp, locGrp, addrGrp, delTimeGrp].forEach(el => el.classList.add('hidden'));
+    const pickupGrp = document.getElementById('pickup-service-group');
+    [visitGrp, delSvcGrp, locGrp, addrGrp, delTimeGrp, pickupGrp, pickupPostalGrp].forEach(el => el.classList.add('hidden'));
 
     // Step5.5: 日数に応じ切り替え
     if(i === 5){
@@ -627,6 +649,7 @@
         populateVisitTimes();
       } else {
         delSvcGrp.classList.remove('hidden');
+        pickupGrp.classList.remove('hidden'); // 車両回収サービスを表示
         if(document.getElementById('del-no').checked){
           visitGrp.classList.remove('hidden');
           populateVisitTimes();
@@ -790,6 +813,59 @@
   });
   document.getElementById('loc-same').addEventListener('change', () => addrGrp.classList.add('hidden'));
   document.getElementById('loc-different').addEventListener('change', () => addrGrp.classList.remove('hidden'));
+
+  // 車両回収サービス選択
+  const pickupYes = document.getElementById('pickup-yes');
+  const pickupNo = document.getElementById('pickup-no');
+  const pickupPostalGrp = document.getElementById('pickup-postal-group');
+  const pickupPostalInput = document.getElementById('pickup-postal');
+  const pickupAddressDisplay = document.getElementById('pickup-address-display');
+  const pickupAddressText = document.getElementById('pickup-address-text');
+
+  pickupYes.addEventListener('change', () => {
+    if(pickupYes.checked) {
+      pickupPostalGrp.classList.remove('hidden');
+      pickupPostalInput.setAttribute('required', 'required');
+    }
+    updateNext();
+  });
+
+  pickupNo.addEventListener('change', () => {
+    if(pickupNo.checked) {
+      pickupPostalGrp.classList.add('hidden');
+      pickupPostalInput.removeAttribute('required');
+      pickupPostalInput.value = '';
+      pickupAddressDisplay.style.display = 'none';
+    }
+    updateNext();
+  });
+
+  // 回収先郵便番号の入力
+  pickupPostalInput.addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/\D/g, '');
+    if(e.target.value.length === 7) {
+      fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${e.target.value}`)
+        .then(res => res.json())
+        .then(json => {
+          if(json.results && json.results[0]){
+            const r = json.results[0];
+            const addr = r.address1 + r.address2 + r.address3;
+            pickupAddressText.textContent = addr;
+            pickupAddressDisplay.style.display = 'block';
+          } else {
+            pickupAddressText.textContent = '該当する住所が見つかりませんでした';
+            pickupAddressDisplay.style.display = 'block';
+          }
+        })
+        .catch(() => {
+          pickupAddressText.textContent = '住所の取得に失敗しました';
+          pickupAddressDisplay.style.display = 'block';
+        });
+    } else {
+      pickupAddressDisplay.style.display = 'none';
+    }
+    updateNext();
+  });
 
   // Next／Prev ボタン
   nexts.forEach((btn,i) => {
