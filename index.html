@@ -502,7 +502,14 @@
 
   // 「次へ」ボタン活性チェック
   function updateNext(){
-    const currentStep = steps[idx];
+    // ステップのインデックスマッピング
+    const stepIndexMap = {
+      0: 0, 1: 1, 2: 2, 3: 3, 4: 4,
+      5: 5, 5.75: 6, 6: 7, 7: 8
+    };
+    
+    const stepIndex = stepIndexMap[idx];
+    const currentStep = steps[stepIndex];
     if (!currentStep) return;
     
     // 現在のステップ内の必須フィールド（visible かつ disabled でないもの）を取得
@@ -541,8 +548,10 @@
       allValid = anyOptionChecked;
     }
     
-    if (nexts[idx]) {
-      nexts[idx].disabled = !allValid;
+    // 次へボタンを取得（stepIndexを使用）
+    const nextButton = nexts[stepIndex];
+    if (nextButton) {
+      nextButton.disabled = !allValid;
     }
   }
 
