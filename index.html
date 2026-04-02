@@ -669,7 +669,7 @@
           <div class="form-group">
             <label for="p-tel">携帯電話番号 <span class="req">*</span></label>
             <div class="input-wrap">
-              <input type="tel" id="p-tel" name="携帯電話番号" pattern="[\d\-]+" required placeholder="例：090-1234-5678" maxlength="13">
+              <input type="tel" id="p-tel" name="携帯電話番号" pattern="[\d\-]+" required placeholder="例：09012345678" maxlength="13">
               <span class="input-valid-icon">✓</span>
             </div>
           </div>
@@ -761,7 +761,7 @@
           <div class="form-group">
             <label for="c-contact-tel">ご担当者様電話番号 <span class="req">*</span></label>
             <div class="input-wrap">
-              <input type="tel" id="c-contact-tel" name="ご担当者様電話番号" pattern="[\d\-]+" required placeholder="例：090-1234-5678" maxlength="13">
+              <input type="tel" id="c-contact-tel" name="ご担当者様電話番号" pattern="[\d\-]+" required placeholder="例：09012345678" maxlength="13">
               <span class="input-valid-icon">✓</span>
             </div>
           </div>
@@ -1061,7 +1061,7 @@
         <div class="form-group">
           <label for="e-tel">電話番号 <span class="req">*</span></label>
           <div class="input-wrap">
-            <input type="tel" id="e-tel" name="緊急連絡先_電話番号" pattern="[\d\-]+" required placeholder="例：090-1234-5678" maxlength="13">
+            <input type="tel" id="e-tel" name="緊急連絡先_電話番号" pattern="[\d\-]+" required placeholder="例：09012345678" maxlength="13">
             <span class="input-valid-icon">✓</span>
           </div>
         </div>
@@ -1572,20 +1572,6 @@
     input.value = v;
   }
 
-  // ---- 電話番号 auto-hyphen ----
-  function autoHyphenTel(input) {
-    let v = input.value.replace(/\D/g, '');
-    if (v.length <= 10) {
-      // 0X-XXXX-XXXX
-      if (v.length > 6) v = v.slice(0,2) + '-' + v.slice(2,6) + '-' + v.slice(6);
-      else if (v.length > 2) v = v.slice(0,2) + '-' + v.slice(2);
-    } else {
-      // 0XX-XXXX-XXXX
-      if (v.length > 7) v = v.slice(0,3) + '-' + v.slice(3,7) + '-' + v.slice(7);
-      else if (v.length > 3) v = v.slice(0,3) + '-' + v.slice(3);
-    }
-    input.value = v.slice(0,13);
-  }
 
   // 入力欄にイベント登録
   steps.forEach(step => {
@@ -1625,11 +1611,6 @@
   setupZipInput(pZip, pAddress, document.getElementById('p-address-preview'));
   setupZipInput(cZip, cAddress, document.getElementById('c-address-preview'));
 
-  // 電話番号ハイフン
-  [document.getElementById('p-tel'), document.getElementById('c-contact-tel'),
-   document.getElementById('e-tel')].forEach(tel => {
-    if (!tel) return;
-    tel.addEventListener('input', () => { autoHyphenTel(tel); updateNext(); });
   });
 
   // 日数 +/- ボタン
