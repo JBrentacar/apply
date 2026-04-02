@@ -483,6 +483,14 @@
       cursor: not-allowed;
       opacity: 0.7;
     }
+    .input-wrap.invalid input,
+    .input-wrap.invalid select,
+    .input-wrap.invalid textarea {
+      border-color: #e74c3c !important;
+      background: #fff8f8 !important;
+      box-shadow: 0 0 0 3px rgba(231,76,60,.15) !important;
+    }
+    .input-wrap.invalid .input-valid-icon { display: none; }
     .btn-hint {
       text-align: center;
       font-size: 0.78rem;
@@ -661,7 +669,7 @@
           <div class="form-group">
             <label for="p-tel">携帯電話番号 <span class="req">*</span></label>
             <div class="input-wrap">
-              <input type="tel" id="p-tel" name="携帯電話番号" pattern="\d+" required placeholder="例：090-1234-5678" maxlength="13">
+              <input type="tel" id="p-tel" name="携帯電話番号" pattern="[\d\-]+" required placeholder="例：090-1234-5678" maxlength="13">
               <span class="input-valid-icon">✓</span>
             </div>
           </div>
@@ -753,7 +761,7 @@
           <div class="form-group">
             <label for="c-contact-tel">ご担当者様電話番号 <span class="req">*</span></label>
             <div class="input-wrap">
-              <input type="tel" id="c-contact-tel" name="ご担当者様電話番号" pattern="\d+" required placeholder="例：090-1234-5678" maxlength="13">
+              <input type="tel" id="c-contact-tel" name="ご担当者様電話番号" pattern="[\d\-]+" required placeholder="例：090-1234-5678" maxlength="13">
               <span class="input-valid-icon">✓</span>
             </div>
           </div>
@@ -1010,7 +1018,7 @@
         <div id="pickup-postal-group" class="form-group hidden">
           <label for="pickup-postal">回収先の郵便番号（7桁） <span class="req">*</span></label>
           <div class="input-wrap">
-            <input type="text" id="pickup-postal" name="回収先郵便番号" maxlength="8" pattern="\d{7}" placeholder="例：986-0814">
+            <input type="text" id="pickup-postal" name="回収先郵便番号" maxlength="8" pattern="[\d\-]{7,8}" placeholder="例：986-0814">
             <span class="input-valid-icon">✓</span>
           </div>
           <div id="pickup-address-display" style="display:none;">
@@ -1053,7 +1061,7 @@
         <div class="form-group">
           <label for="e-tel">電話番号 <span class="req">*</span></label>
           <div class="input-wrap">
-            <input type="tel" id="e-tel" name="緊急連絡先_電話番号" pattern="\d+" required placeholder="例：090-1234-5678" maxlength="13">
+            <input type="tel" id="e-tel" name="緊急連絡先_電話番号" pattern="[\d\-]+" required placeholder="例：090-1234-5678" maxlength="13">
             <span class="input-valid-icon">✓</span>
           </div>
         </div>
@@ -1234,6 +1242,31 @@
   let idx = 0;
 
   // ---- 「次へ」ヒント表示 ----
+  function highlightMissing(step) {
+    if (!step) return;
+    step.querySelectorAll(".input-wrap").forEach(w => {
+      w.classList.remove("invalid");
+    });
+    const fields = Array.from(step.querySelectorAll("input[required],select[required],textarea[required]"));
+    fields.filter(f => {
+      if (f.disabled) return false;
+      let p = f.parentElement;
+      while (p && p !== step) {
+        if (p.classList.contains("hidden") || p.style.display === "none") return false;
+        p = p.parentElement;
+      }
+      return true;
+    }).forEach(f => {
+      const name = f.name;
+      const ok = f.type === "checkbox" ? f.checked :
+                 f.type === "radio" ? Array.from(step.querySelectorAll("input[name=" + JSON.stringify(name) + "]")).some(r => r.checked) :
+                 f.value.trim() !== "" && f.checkValidity();
+      if (!ok) {
+        const w = f.closest(".input-wrap");
+        if (w) w.classList.add("invalid");
+      }
+    });
+  }
   function updateHintVisibility(stepIdx, allValid) {
     const hintMap = {
       0: 'hint-step1',
@@ -1733,7 +1766,7 @@
   // Next／Prev ボタン
   nexts.forEach((btn, i) => {
     btn.addEventListener('click', () => {
-      if (btn.disabled) return;
+      if (btn.disabled) { highlightMissing(steps[stepIndexMap[idx]]); return; }
       if      (i === 4) idx = 5;
       else if (i === 5) idx = 5.75;
       else if (i === 6) idx = 6;
