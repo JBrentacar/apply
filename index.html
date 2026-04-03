@@ -599,17 +599,16 @@
         <div class="step-card-title">🏷️ ご利用種別の選択</div>
         <div class="form-group">
           <label>ご利用種別 <span class="req">*</span></label>
+          <input type="hidden" id="use-type" name="ご利用種別" value="">
           <div class="type-cards">
-            <label class="type-card" id="card-personal">
+            <div class="type-card" id="card-personal">
               <span class="card-icon">👤</span>
               <span class="card-label">個人</span>
-              <input type="radio" id="use-personal" name="ご利用種別" value="個人" required>
-            </label>
-            <label class="type-card" id="card-corporate">
+            </div>
+            <div class="type-card" id="card-corporate">
               <span class="card-icon">🏢</span>
               <span class="card-label">法人</span>
-              <input type="radio" id="use-corporate" name="ご利用種別" value="法人">
-            </label>
+            </div>
           </div>
         </div>
         <div class="button-group">
@@ -1371,6 +1370,11 @@
       }
     });
 
+    // Step 1 利用種別チェック
+    if (idx === 0) {
+      allValid = document.getElementById('use-type').value !== '';
+    }
+
     // Step 4 オプション特別処理
     if (idx === 3) {
       const anyOptionChecked = Array.from(currentStep.querySelectorAll('input[type="checkbox"]')).some(cb => cb.checked);
@@ -1476,7 +1480,7 @@
 
     // Step2: 個人／法人 切り替え
     if (i === 1) {
-      const isCorp = document.getElementById('use-corporate').checked;
+      const isCorp = document.getElementById('use-type').value === '法人';
       document.getElementById('personal-info').style.display  = isCorp ? 'none'  : 'block';
       document.getElementById('corporate-info').style.display = isCorp ? 'block' : 'none';
       document.querySelectorAll('#personal-info input,#personal-info select,#personal-info textarea')
@@ -1520,7 +1524,7 @@
 
     // Step7: 同意チェックと表示切り替え
     if (i === 7) {
-      const isCorp = document.getElementById('use-corporate').checked;
+      const isCorp = document.getElementById('use-type').value === '法人';
       document.getElementById('terms-personal').style.display  = isCorp ? 'none'  : 'block';
       document.getElementById('terms-corporate').style.display = isCorp ? 'block' : 'none';
       updateSubmitButton();
@@ -1534,7 +1538,7 @@
   function updateSubmitButton() {
     let ok = false;
     if (currentStepIndex === 7) {
-      if (document.getElementById('use-corporate').checked) {
+      if (document.getElementById('use-type').value === '法人') {
         ok = corporateRequired.every(i => {
           if (i.type === 'radio') return !!form.querySelector(`input[name="${i.name}"]:checked`);
           return i.checked;
@@ -1667,14 +1671,16 @@
   });
 
   // Step1: タイプカード選択
-  document.getElementById('use-personal').addEventListener('change', function() {
+  document.getElementById('card-personal').addEventListener('click', function() {
     document.querySelectorAll('.type-card').forEach(el => el.classList.remove('selected'));
-    document.getElementById('card-personal').classList.add('selected');
+    this.classList.add('selected');
+    document.getElementById('use-type').value = '個人';
     updateNext();
   });
-  document.getElementById('use-corporate').addEventListener('change', function() {
+  document.getElementById('card-corporate').addEventListener('click', function() {
     document.querySelectorAll('.type-card').forEach(el => el.classList.remove('selected'));
-    document.getElementById('card-corporate').classList.add('selected');
+    this.classList.add('selected');
+    document.getElementById('use-type').value = '法人';
     updateNext();
   });
 
