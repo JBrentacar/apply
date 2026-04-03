@@ -599,18 +599,17 @@
         <div class="step-card-title">🏷️ ご利用種別の選択</div>
         <div class="form-group">
           <label>ご利用種別 <span class="req">*</span></label>
-          <!-- ラジオは cards の外 -->
-          <input type="radio" id="use-personal" name="ご利用種別" value="個人" required style="display:none">
-          <input type="radio" id="use-corporate" name="ご利用種別" value="法人" style="display:none">
           <div class="type-cards">
-            <div class="type-card" id="card-personal" onclick="selectType('personal')">
+            <label class="type-card" id="card-personal">
               <span class="card-icon">👤</span>
               <span class="card-label">個人</span>
-            </div>
-            <div class="type-card" id="card-corporate" onclick="selectType('corporate')">
+              <input type="radio" id="use-personal" name="ご利用種別" value="個人" required>
+            </label>
+            <label class="type-card" id="card-corporate">
               <span class="card-icon">🏢</span>
               <span class="card-label">法人</span>
-            </div>
+              <input type="radio" id="use-corporate" name="ご利用種別" value="法人">
+            </label>
           </div>
         </div>
         <div class="button-group">
@@ -1667,13 +1666,16 @@
     });
   });
 
-  // Step1: タイプ選択
-  function selectType(type) {
-    document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById('card-' + type).classList.add('selected');
-    document.getElementById('use-' + type).checked = true;
-    updateNext();
-  }
+  // Step1: タイプカード選択
+  document.querySelectorAll('.type-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      const radio = card.querySelector('input[type="radio"]');
+      if (radio) radio.checked = true;
+      updateNext();
+    });
+  });
 
   // 配送サービス選択
   document.getElementById('del-yes').addEventListener('change', () => {
