@@ -256,7 +256,7 @@
     }
     .type-card .card-icon { font-size: 2.2rem; display: block; margin-bottom: 10px; }
     .type-card .card-label { font-weight: 700; font-size: 1.05rem; color: #1a2540; }
-    .type-card input[type="radio"] { display: none; }
+    .type-card input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
 
     /* ===== CLASS SELECTION CARDS (Step 3) ===== */
     .class-cards {
@@ -1667,14 +1667,15 @@
   });
 
   // Step1: タイプカード選択
-  document.querySelectorAll('.type-card').forEach(card => {
-    card.addEventListener('click', () => {
-      document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      const radio = card.querySelector('input[type="radio"]');
-      if (radio) radio.checked = true;
-      updateNext();
-    });
+  document.getElementById('use-personal').addEventListener('change', function() {
+    document.querySelectorAll('.type-card').forEach(el => el.classList.remove('selected'));
+    document.getElementById('card-personal').classList.add('selected');
+    updateNext();
+  });
+  document.getElementById('use-corporate').addEventListener('change', function() {
+    document.querySelectorAll('.type-card').forEach(el => el.classList.remove('selected'));
+    document.getElementById('card-corporate').classList.add('selected');
+    updateNext();
   });
 
   // 配送サービス選択
