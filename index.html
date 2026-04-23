@@ -1303,8 +1303,8 @@
     let sum = 0;
     for (let i = 0; i < 10; i++) sum += parseInt(licenseNumber[i]) * weights[i];
     const remainder  = sum % 11;
-    // remainder が 0 → checkDigit = 0、1 → checkDigit = 1 として扱う（11以上・10になる場合の対応）
-    const checkDigit = (remainder <= 1) ? remainder : (11 - remainder);
+    // 11 - remainder の下1桁がチェックデジット（11→1、10→0）
+    const checkDigit = (11 - remainder) % 10;
     return checkDigit === parseInt(licenseNumber[10]);
   }
 
