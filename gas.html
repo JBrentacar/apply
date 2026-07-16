@@ -592,7 +592,7 @@
     <!-- Legacy progress bar (kept for JS compatibility) -->
     <div class="progress-bar"><div class="progress-inner"></div></div>
 
-  <form action="https://script.google.com/macros/s/AKfycbxFyVER4eAYoZedyxyYw3I_rfThONSDPatiOjlmxa1pQotkm3tMZSJK1iYie6p76Mx3Rg/exec" method="post" id="rentalForm">
+  <form action="https://ssgform.com/s/iCcjdP7Py647" method="post" id="rentalForm">
 
 
       <!-- ============ Step 1 ============ -->
@@ -1196,6 +1196,9 @@
   const prevs     = document.querySelectorAll('.btn-prev');
   const prog      = document.querySelector('.progress-inner');
 
+  // GASのウェブアプリURL（AppSheet取り込み用）
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxFyVER4eAYoZedyxyYw3I_rfThONSDPatiOjlmxa1pQotkm3tMZSJK1iYie6p76Mx3Rg/exec';
+
   // Step5
   const daysInput = document.getElementById('days');
   const daysVal   = document.getElementById('days-value');
@@ -1240,6 +1243,7 @@
   const increase = document.getElementById('days-increase');
 
   let idx = 0;
+  const stepIndexMap = { 0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 5.75:6, 6:7, 7:8 };
 
   // ---- 「次へ」ヒント表示 ----
   function highlightMissing(step) {
@@ -1345,7 +1349,6 @@
 
   // 「次へ」ボタン活性チェック
   function updateNext() {
-    const stepIndexMap = { 0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 5.75:6, 6:7, 7:8 };
     const stepIndex    = stepIndexMap[idx];
     const currentStep  = steps[stepIndex];
     if (!currentStep) return;
@@ -1559,9 +1562,26 @@
     el.addEventListener('change', updateSubmitButton)
   );
 
-  // 送信ボタン抑制
+  // 送信ボタン処理
+  // GASへバックグラウンド送信（AppSheet取り込み用）→ 完了後にssgformへ通常送信（メール通知＋done.htmlへ遷移）
   submitBtn.addEventListener('click', e => {
-    if (!submitBtn.disabled) form.submit();
+    if (submitBtn.disabled) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '送信中…';
+
+    const data = new FormData(form);
+
+    fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: data
+    })
+    .catch(function(){})
+    .finally(function(){
+      // GAS送信の完了（または失敗）を待ってからssgformへ送信
+      form.submit();
+    });
   });
 
   // 免許証番号の入力イベント
