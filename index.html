@@ -573,6 +573,39 @@
 
     /* ===== STEP 1 progress-bar (legacy, hidden) ===== */
     .progress-bar { display: none; }
+.zip-search-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.zip-search-wrap input { flex: 1; }
+.btn-zip-search {
+  flex-shrink: 0;
+  background: #eef3fb;
+  color: #0051b5;
+  border: 1.5px solid #c5d3e8;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.btn-zip-search:hover { background: #0068e9; color: #fff; border-color: #0068e9; }
+.btn-zip-search:disabled { opacity: .5; cursor: not-allowed; }
+.zip-msg {
+  font-size: 0.83rem;
+  margin-top: 6px;
+  display: none;
+}
+.zip-msg.visible { display: block; }
+.zip-msg.ok  { color: #1e8449; font-weight: 700; }
+.zip-msg.ng  { color: #e53935; font-weight: 700; }
+.zip-msg.ng::before { content: "⚠ "; }
+
+    
   </style>
 </head>
 <body>
@@ -640,13 +673,16 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="p-zip">郵便番号 <span class="req">*</span></label>
-            <div class="input-wrap">
-              <input type="text" id="p-zip" name="郵便番号" required placeholder="例：123-4567" maxlength="8">
-              <span class="input-valid-icon">✓</span>
-            </div>
-            <div class="address-preview" id="p-address-preview"></div>
-          </div>
+  <label for="p-zip">郵便番号</label>
+  <div class="zip-search-wrap">
+    <input type="text" id="p-zip" name="郵便番号" placeholder="例：123-4567" maxlength="8">
+    <button type="button" class="btn-zip-search" data-target="p">住所を検索</button>
+  </div>
+  <div class="zip-msg" id="p-zip-msg"></div>
+  <div class="address-preview" id="p-address-preview"></div>
+  <span class="note">郵便番号がお分かりの場合は入力後「住所を検索」を押すと住所が自動入力されます。ご不明な場合は住所を直接ご入力ください。</span>
+</div>
+
           <div class="form-group">
             <label for="p-address">住所 <span class="req">*</span></label>
             <div class="input-wrap">
@@ -725,13 +761,16 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="c-zip">郵便番号 <span class="req">*</span></label>
-            <div class="input-wrap">
-              <input type="text" id="c-zip" name="郵便番号" required placeholder="例：123-4567" maxlength="8">
-              <span class="input-valid-icon">✓</span>
-            </div>
-            <div class="address-preview" id="c-address-preview"></div>
-          </div>
+  <label for="c-zip">郵便番号</label>
+  <div class="zip-search-wrap">
+    <input type="text" id="c-zip" name="郵便番号" placeholder="例：123-4567" maxlength="8">
+    <button type="button" class="btn-zip-search" data-target="c">住所を検索</button>
+  </div>
+  <div class="zip-msg" id="c-zip-msg"></div>
+  <div class="address-preview" id="c-address-preview"></div>
+  <span class="note">郵便番号がお分かりの場合は入力後「住所を検索」を押すと住所が自動入力されます。ご不明な場合は住所を直接ご入力ください。</span>
+</div>
+
           <div class="form-group">
             <label for="c-address">住所 <span class="req">*</span></label>
             <div class="input-wrap">
@@ -1607,35 +1646,72 @@
     });
   });
 
-  // 郵便番号 / 電話番号 ハイフン自動挿入 & API
-  function setupZipInput(zipEl, addressEl, previewEl) {
+   // 郵便番号：ボタン方式で住所検索（ブロックはしない＝あくまで補助）
+  function setupZipInput(prefix, zipEl, addressEl, previewEl) {
     if (!zipEl) return;
+    const msgEl = document.getElementById(prefix + '-zip-msg');
+
+    // 番号を打ち直したら「確定済み」表示をリセット（打ち直し忘れの注意喚起）
     zipEl.addEventListener('input', () => {
       autoHyphenZip(zipEl);
+      if (msgEl) { msgEl.textContent = ''; msgEl.className = 'zip-msg'; }
+      if (previewEl) previewEl.classList.remove('visible');
       updateNext();
     });
-    zipEl.addEventListener('blur', () => {
+
+    // 「住所を検索」ボタン
+    const btn = document.querySelector('.btn-zip-search[data-target="' + prefix + '"]');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
       const raw = zipEl.value.replace(/\D/g, '');
-      if (raw.length !== 7) return;
+      if (raw.length !== 7) {
+        if (msgEl) {
+          msgEl.textContent = '郵便番号は7桁でご入力ください。';
+          msgEl.className = 'zip-msg ng visible';
+        }
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = '検索中…';
       fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${raw}`)
         .then(r => r.json())
         .then(json => {
           if (json.results && json.results[0]) {
-            const r    = json.results[0];
+            const r = json.results[0];
             const addr = r.address1 + r.address2 + r.address3;
             if (addressEl) addressEl.value = addr;
             if (previewEl) {
               previewEl.textContent = '📍 ' + addr;
               previewEl.classList.add('visible');
             }
-            updateNext();
+            if (msgEl) {
+              msgEl.textContent = '住所を入力しました。番地・建物名をご確認ください。';
+              msgEl.className = 'zip-msg ok visible';
+            }
+          } else {
+            // 引けなくても止めない：手入力を案内するだけ
+            if (msgEl) {
+              msgEl.textContent = '該当する住所が見つかりませんでした。お手数ですが住所を直接ご入力ください。';
+              msgEl.className = 'zip-msg ng visible';
+            }
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          if (msgEl) {
+            msgEl.textContent = '住所の取得に失敗しました。お手数ですが住所を直接ご入力ください。';
+            msgEl.className = 'zip-msg ng visible';
+          }
+        })
+        .finally(() => {
+          btn.disabled = false;
+          btn.textContent = '住所を検索';
+          updateNext();
+        });
     });
   }
-  setupZipInput(pZip, pAddress, document.getElementById('p-address-preview'));
-  setupZipInput(cZip, cAddress, document.getElementById('c-address-preview'));
+  setupZipInput('p', pZip, pAddress, document.getElementById('p-address-preview'));
+  setupZipInput('c', cZip, cAddress, document.getElementById('c-address-preview'));
+
 
   // 日数 +/- ボタン
   increase.addEventListener('click', () => {
