@@ -607,6 +607,32 @@
 
     
   </style>
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAsjuxTQRPx7LoaIcFsu0mYF_3PR9NKkEc",
+    authDomain: "jb-rentacar.firebaseapp.com",
+    projectId: "jb-rentacar",
+    storageBucket: "jb-rentacar.firebasestorage.app",
+    messagingSenderId: "260306920043",
+    appId: "1:260306920043:web:c0742d3fc0c585cc55872e"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const fbDb = getFirestore(fbApp);
+
+  // フォーム送信内容をFirestoreに保存する関数を、他のスクリプトから呼べるよう window に登録
+  window.saveApplicationToFirestore = async function(dataObj) {
+    return await addDoc(collection(fbDb, "rentacar", "applications", "items"), {
+      ...dataObj,
+      ステータス: "未承認",
+      作成日時: serverTimestamp()
+    });
+  };
+</script>
+
 </head>
 <body>
 
@@ -1603,7 +1629,6 @@
   );
 
   // 送信ボタン処理
-  // GASへバックグラウンド送信（AppSheet取り込み用）→ 完了後にssgformへ通常送信（メール通知＋done.htmlへ遷移）
   submitBtn.addEventListener('click', e => {
     if (submitBtn.disabled) return;
 
@@ -1611,18 +1636,30 @@
     submitBtn.textContent = '送信中…';
 
     const data = new FormData(form);
+    const dataObj = {};
+    for (const [key, value] of data.entries()) {
+      if (dataObj[key] !== undefined) {
+        if (Array.isArray(dataObj[key])) {
+          dataObj[key].push(value);
+        } else {
+          dataObj[key] = [dataObj[key], value];
+        }
+      } else {
+        dataObj[key] = value;
+      }
+    }
 
-    fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      body: data
-    })
-    .catch(function(){})
-    .finally(function(){
-      // GAS送信の完了（または失敗）を待ってからssgformへ送信
-      form.submit();
-    });
+    const save = window.saveApplicationToFirestore
+      ? window.saveApplicationToFirestore(dataObj)
+      : Promise.resolve();
+
+    save
+      .catch(function(err){ console.error('Firestore保存エラー', err); })
+      .finally(function(){
+        form.submit();
+      });
   });
+
 
   // 免許証番号の入力イベント
   pLicense.addEventListener('input', e => {
