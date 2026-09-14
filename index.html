@@ -1645,8 +1645,10 @@
           dataObj[key] = [dataObj[key], value];
         }
       } else {
-        dataObj[key] = value;
+        const isArrayField = key.endsWith("[]");
+        dataObj[key] = isArrayField ? [value] : value;
       }
+
     }
 
     const save = window.saveApplicationToFirestore
