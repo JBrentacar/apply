@@ -606,7 +606,21 @@
 .zip-msg.ng::before { content: "⚠ "; }
 
     
-  </style>
+  
+  /* 同意モーダル */
+  body.consent-lock { overflow: hidden; }
+  .consent-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .consent-overlay[hidden] { display: none; }
+  .consent-card { background: #fff; border-radius: 12px; max-width: 520px; width: 100%;
+    padding: 28px 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; }
+  .consent-card h2 { font-size: 1.15rem; margin: 0 0 14px; color: #1a1a1a; }
+  .consent-card p { font-size: 0.92rem; line-height: 1.8; color: #333; margin: 0 0 12px; }
+  .consent-card button { display: block; width: 100%; margin-top: 18px; padding: 14px;
+    border: none; border-radius: 8px; background: #1e6fd9; color: #fff;
+    font-size: 1rem; font-weight: 700; cursor: pointer; }
+  .consent-card button:active { opacity: 0.8; }
+</style>
   <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
   import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -634,7 +648,16 @@
 </script>
 
 </head>
-<body>
+<body class="consent-lock">
+  <div class="consent-overlay" id="consent-overlay" role="dialog" aria-modal="true" aria-labelledby="consent-title">
+    <div class="consent-card">
+      <h2 id="consent-title">ご利用にあたって</h2>
+      <p>ご入力いただいた内容は、ご予約の受付、空車の確認、およびご連絡のために利用します。</p>
+      <p>ご希望に沿えない場合もございます。その際も、入力いただいた情報は予約対応の目的にのみ使用します。</p>
+      <button type="button" id="consent-agree">同意して入力へ</button>
+    </div>
+  </div>
+
 
   <!-- HEADER -->
   <header class="site-header">
@@ -1104,36 +1127,36 @@
 
       <!-- ============ Step 6 ============ -->
       <div class="form-step" data-step="6">
-        <div class="step-card-title">🆘 緊急連絡先の入力</div>
+        <div class="step-card-title">🆘 緊急連絡先の入力（任意）</div>
         <div class="alert-box">
           運転者様に事故等が発生した場合に使用する連絡先です。<br>
-          ※ ご契約者様以外の連絡先をご記入ください
+          ※ ご契約者様以外の連絡先をご記入ください（未入力でもお進みいただけます）
         </div>
         <div class="form-group">
-          <label for="e-name">お名前 <span class="req">*</span></label>
+          <label for="e-name">お名前</label>
           <div class="input-wrap">
-            <input type="text" id="e-name" name="緊急連絡先_お名前" required>
+            <input type="text" id="e-name" name="緊急連絡先_お名前">
             <span class="input-valid-icon">✓</span>
           </div>
         </div>
         <div class="form-group">
-          <label for="e-name-kana">お名前（フリガナ） <span class="req">*</span></label>
+          <label for="e-name-kana">お名前（フリガナ）</label>
           <div class="input-wrap">
-            <input type="text" id="e-name-kana" name="緊急連絡先_お名前（フリガナ）" required>
+            <input type="text" id="e-name-kana" name="緊急連絡先_お名前（フリガナ）">
             <span class="input-valid-icon">✓</span>
           </div>
         </div>
         <div class="form-group">
-          <label for="e-tel">電話番号 <span class="req">*</span></label>
+          <label for="e-tel">電話番号</label>
           <div class="input-wrap">
-            <input type="tel" id="e-tel" name="緊急連絡先_電話番号" pattern="[\d\-]+" required placeholder="例：09012345678" maxlength="13">
+            <input type="tel" id="e-tel" name="緊急連絡先_電話番号" pattern="[\d\-]+" placeholder="例：09012345678" maxlength="13">
             <span class="input-valid-icon">✓</span>
           </div>
         </div>
         <div class="form-group">
-          <label for="e-relation">ご関係 <span class="req">*</span></label>
+          <label for="e-relation">ご関係</label>
           <div class="input-wrap">
-            <input type="text" id="e-relation" name="緊急連絡先_ご関係" required>
+            <input type="text" id="e-relation" name="緊急連絡先_ご関係">
             <span class="input-valid-icon">✓</span>
           </div>
           <span class="note">家族・友人・同僚 など</span>
@@ -1142,7 +1165,7 @@
           <button type="button" class="btn-prev">戻る</button>
           <button type="button" class="btn-next" disabled>次へ</button>
         </div>
-        <div class="btn-hint" id="hint-step6">すべての必須項目を入力してください</div>
+        <div class="btn-hint" id="hint-step6">入力が済んだら次へお進みください</div>
       </div>
 
       <!-- ============ Step 7 (確認) ============ -->
@@ -1378,6 +1401,7 @@
 
   // 免許証番号の検証状態を更新
   function updateLicenseStatus() {
+    if (!pLicense || !licenseStatus || !licenseError) return;
     const value = pLicense.value.trim();
     if (value === '') {
       licenseStatus.textContent = '-';
@@ -1648,6 +1672,10 @@
 
     }
 
+    // 同意の記録（Firestore のみ。SSGフォームの項目は変更しない）
+    dataObj['同意文面版']   = 'v1-20261022';
+    dataObj['同意取得日時'] = window.__consentAt || null;
+
     const save = window.saveApplicationToFirestore
       ? window.saveApplicationToFirestore(dataObj)
       : Promise.resolve();
@@ -1661,11 +1689,13 @@
 
 
   // 免許証番号の入力イベント
-  pLicense.addEventListener('input', e => {
-    e.target.value = e.target.value.replace(/\D/g, '');
-    updateLicenseStatus();
-  });
-  pLicense.addEventListener('blur', updateLicenseStatus);
+  if (pLicense) {
+    pLicense.addEventListener('input', e => {
+      e.target.value = e.target.value.replace(/\D/g, '');
+      updateLicenseStatus();
+    });
+    pLicense.addEventListener('blur', updateLicenseStatus);
+  }
 
   // ---- 郵便番号 auto-hyphen ----
   function autoHyphenZip(input) {
@@ -1915,6 +1945,69 @@
 })();
 </script>
 
+  <script>
+    (function(){
+      var ov   = document.getElementById('consent-overlay');
+      var btn  = document.getElementById('consent-agree');
+      var form = document.getElementById('rentalForm');
+
+      // ---- 過去日を選べないようにする ----
+      var startEl = document.getElementById('start-date');
+      if (startEl) {
+        var d  = new Date();
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        var today = d.getFullYear() + '-' + mm + '-' + dd;
+        startEl.min = today;
+
+        startEl.addEventListener('change', function(){
+          if (startEl.value && startEl.value < today) {
+            startEl.value = '';
+            startEl.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          if (startEl.value) window.__consentStartDate = startEl.value;
+        });
+      }
+
+      if (!ov || !btn) return;
+
+      // ---- モーダル表示中は背面を操作させない ----
+      var bgTargets = [
+        document.querySelector('.site-header'),
+        document.querySelector('.form-container')
+      ].filter(Boolean);
+
+      function lockBackground(lock) {
+        bgTargets.forEach(function(el){
+          if (lock) { el.setAttribute('inert', ''); el.setAttribute('aria-hidden', 'true'); }
+          else      { el.removeAttribute('inert'); el.removeAttribute('aria-hidden'); }
+        });
+      }
+
+      // フォーカスをモーダル内に閉じ込める
+      function trap(e) {
+        if (e.key !== 'Tab') return;
+        e.preventDefault();
+        btn.focus();
+      }
+
+      lockBackground(true);
+      document.addEventListener('keydown', trap, true);
+      btn.focus();
+
+      btn.addEventListener('click', function(){
+        window.__consentAt = new Date().toISOString();
+        ov.hidden = true;
+        document.body.classList.remove('consent-lock');
+        lockBackground(false);
+        document.removeEventListener('keydown', trap, true);
+
+        // 同意後、最初の操作要素へフォーカスを移す
+        var first = document.querySelector('.type-card');
+        if (first) { first.setAttribute('tabindex', '-1'); first.focus(); }
+      });
+    })();
+  </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
