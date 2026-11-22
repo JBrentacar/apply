@@ -623,7 +623,7 @@
 </style>
   <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAsjuxTQRPx7LoaIcFsu0mYF_3PR9NKkEc",
@@ -1538,15 +1538,14 @@
     if (!date) return null;
     if (SLOT_CACHE[date] !== undefined) return SLOT_CACHE[date];
     try {
-      const ref = doc(db, SLOT_COLLECTION[0], SLOT_COLLECTION[1], SLOT_COLLECTION[2], date);
+      const ref = doc(fbDb, SLOT_COLLECTION[0], SLOT_COLLECTION[1], SLOT_COLLECTION[2], date);
       const snap = await getDoc(ref);
       SLOT_CACHE[date] = snap.exists()
         ? { closed: !!snap.data().closed, slots: Array.isArray(snap.data().slots) ? snap.data().slots : [], memo: snap.data().memo || "" }
         : null;
     } catch (e) {
       console.warn('配送枠の取得に失敗', e);
-      SLOT_CACHE[date] = undefined;   // 次回再試行できるように
-      return null;
+      return undefined;   // 失敗。キャッシュしない
     }
     return SLOT_CACHE[date];
   }
