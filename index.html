@@ -1507,15 +1507,84 @@
     }
   }
 
-  // 配送時間プルダウン
-  function populateDeliveryTimes() {
-    delTimeSel.innerHTML = '<option value="">選択してください</option>';
+  // ===== 配送可能枠（Firestore の設定を読む） =====
+  // rentacar/delivery_slots/items/{YYYY-MM-DD} = { closed:bool, slots:[...], memo:"..." }
+  const SLOT_COLLECTION = ["rentacar","delivery_slots","items"];
+  const SLOT_CACHE = {};   // date -> {closed, slots, memo}
+
+  function defaultSlots() {
+    const arr = [];
     for (let h = 10; h < 17; h++) {
-      const o1 = `${String(h).padStart(2,'0')}:00〜${String(h).padStart(2,'0')}:30`;
-      const o2 = `${String(h).padStart(2,'0')}:30〜${String(h+1).padStart(2,'0')}:00`;
-      delTimeSel.insertAdjacentHTML('beforeend', `<option value="${o1}">${o1}</option>`);
-      delTimeSel.insertAdjacentHTML('beforeend', `<option value="${o2}">${o2}</option>`);
+      arr.push(`${String(h).padStart(2,'0')}:00〜${String(h).padStart(2,'0')}:30`);
+      arr.push(`${String(h).padStart(2,'0')}:30〜${String(h+1).padStart(2,'0')}:00`);
     }
+    return arr;
+  }
+
+  function slotNoteEl() {
+    let el = document.getElementById('delivery-slot-note');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'delivery-slot-note';
+      el.className = 'note';
+      el.style.marginTop = '6px';
+      const grp = document.getElementById('delivery-time-group');
+      if (grp) grp.appendChild(el);
+    }
+    return el;
+  }
+
+  async function loadSlots(date) {
+    if (!date) return null;
+    if (SLOT_CACHE[date] !== undefined) return SLOT_CACHE[date];
+    try {
+      const ref = doc(db, SLOT_COLLECTION[0], SLOT_COLLECTION[1], SLOT_COLLECTION[2], date);
+      const snap = await getDoc(ref);
+      SLOT_CACHE[date] = snap.exists()
+        ? { closed: !!snap.data().closed, slots: Array.isArray(snap.data().slots) ? snap.data().slots : [], memo: snap.data().memo || "" }
+        : null;
+    } catch (e) {
+      console.warn('配送枠の取得に失敗', e);
+      SLOT_CACHE[date] = undefined;   // 次回再試行できるように
+      return null;
+    }
+    return SLOT_CACHE[date];
+  }
+
+  // 配送時間プルダウン（設定された枠だけを表示。設定が無ければ従来どおりの仮枠）
+  async function populateDeliveryTimes() {
+    const date = document.getElementById('start-date').value;
+    const note = slotNoteEl();
+    delTimeSel.innerHTML = '<option value="">読み込み中…</option>';
+    delTimeSel.disabled = true;
+
+    const cfg = await loadSlots(date);
+    delTimeSel.innerHTML = '<option value="">選択してください</option>';
+    delTimeSel.disabled = false;
+
+    if (cfg === undefined) {
+      // 取得失敗（権限など）→ 従来の枠で継続。運用は止めない
+      defaultSlots().forEach(t => delTimeSel.insertAdjacentHTML('beforeend', `<option value="${t}">${t}</option>`));
+      if (note) note.textContent = '';
+      return;
+    }
+
+    if (cfg === null) {
+      // その日の設定がまだ無い → 従来の枠
+      defaultSlots().forEach(t => delTimeSel.insertAdjacentHTML('beforeend', `<option value="${t}">${t}</option>`));
+      if (note) note.textContent = '';
+      return;
+    }
+
+    if (cfg.closed || !cfg.slots.length) {
+      delTimeSel.insertAdjacentHTML('beforeend', '<option value="">この日は配送の空きがありません</option>');
+      delTimeSel.disabled = true;
+      if (note) note.textContent = cfg.memo || '別の日をご選択ください。';
+      return;
+    }
+
+    cfg.slots.forEach(t => delTimeSel.insertAdjacentHTML('beforeend', `<option value="${t}">${t}</option>`));
+    if (note) note.textContent = cfg.memo || '';
   }
 
   // クイック日数選択
@@ -1675,6 +1744,18 @@
     // 同意の記録（Firestore のみ。SSGフォームの項目は変更しない）
     dataObj['同意文面版']   = 'v1-20261022';
     dataObj['同意取得日時'] = window.__consentAt || null;
+
+    // 配送を希望しているのに、配送時間が未選択・枠なしなら止める
+    const delYes = document.getElementById('del-yes');
+    if (delYes && delYes.checked) {
+      const t = document.getElementById('delivery-time-select');
+      if (t && !t.value) {
+        alert('ご配送希望時間をお選びください。\nこの日に空きがない場合は、別の日をご選択ください。');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'この内容で送信する';
+        return;
+      }
+    }
 
     const save = window.saveApplicationToFirestore
       ? window.saveApplicationToFirestore(dataObj)
@@ -2008,6 +2089,7 @@
       });
     })();
   </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
