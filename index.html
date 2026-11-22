@@ -1616,7 +1616,15 @@
     });
   });
 
-  // 利用開始日チェック（水曜・祝日）
+  // その日が配送・回収の受付停止日（終日不可）かどうか
+  async function isClosedDay(date) {
+    if (!date) return false;
+    delete SLOT_CACHE[date];
+    const r = await fetchSlots(date);
+    return r.status === 'ok' && (r.data.closed || !r.data.slots.length);
+  }
+
+  // 利用開始日チェック（水曜・祝日・配送受付停止日）
   document.getElementById('start-date').addEventListener('change', async e => {
     const selDate = e.target.value;
     const errP    = document.getElementById('date-error');
@@ -1631,6 +1639,12 @@
         const data = await res.json();
         if (data[selDate]) errText = `ご選択した日は「${data[selDate]}」の祝日です。別日を選択してください。`;
       } catch {}
+      // 配送・回収を行うご利用（30日以上）で、受付停止日にあたる場合は選択時点で止める
+      if (!errText && daysInput && +daysInput.value >= 30) {
+        if (await isClosedDay(selDate)) {
+          errText = 'ご選択した日は配送・回収の受付を停止しています。別日を選択してください。';
+        }
+      }
     }
     if (errText) {
       errP.textContent = errText;
@@ -1682,7 +1696,14 @@
         populateVisitTimes();
       } else {
         delSvcGrp.classList.remove('hidden');
-        if (document.getElementById('del-no').checked) {
+        const delYesNow = document.getElementById('del-yes');
+        if (delYesNow && delYesNow.checked) {
+          // 以前「利用する」を選んだまま戻ってきた場合も、詳細と時間枠を必ず表示する
+          locGrp.classList.remove('hidden');
+          delTimeGrp.classList.remove('hidden');
+          if (document.getElementById('loc-different').checked) addrGrp.classList.remove('hidden');
+          populateDeliveryTimes(true);
+        } else if (document.getElementById('del-no').checked) {
           visitGrp.classList.remove('hidden');
           populateVisitTimes();
         }
