@@ -727,12 +727,12 @@
           <div class="form-group">
   <label for="p-zip">郵便番号</label>
   <div class="zip-search-wrap">
-    <input type="text" id="p-zip" name="郵便番号" placeholder="例：123-4567" maxlength="8">
+    <input type="text" id="p-zip" name="郵便番号" placeholder="例：9860814（ハイフンなし）" maxlength="7" inputmode="numeric" pattern="[0-9]{7}">
     <button type="button" class="btn-zip-search" data-target="p">住所を検索</button>
   </div>
   <div class="zip-msg" id="p-zip-msg"></div>
   <div class="address-preview" id="p-address-preview"></div>
-  <span class="note">郵便番号がお分かりの場合は入力後「住所を検索」を押すと住所が自動入力されます。ご不明な場合は住所を直接ご入力ください。</span>
+  <span class="note">郵便番号はハイフンなしの7桁でご入力ください（例：9860814）。「住所を検索」を押すと町名まで自動入力され、丁目以降は番地欄に入ります。</span>
 </div>
 
           <div class="form-group">
@@ -748,7 +748,7 @@
               <input type="text" id="p-block" name="番地" required>
               <span class="input-valid-icon">✓</span>
             </div>
-            <span class="note">建物名は次に入力します。</span>
+            <span class="note">丁目からご入力ください（例：3丁目2-5）。建物名は次に入力します。</span>
           </div>
           <div class="form-group">
             <label for="p-building">建物名</label>
@@ -815,12 +815,12 @@
           <div class="form-group">
   <label for="c-zip">郵便番号</label>
   <div class="zip-search-wrap">
-    <input type="text" id="c-zip" name="郵便番号" placeholder="例：123-4567" maxlength="8">
+    <input type="text" id="c-zip" name="郵便番号" placeholder="例：9860814（ハイフンなし）" maxlength="7" inputmode="numeric" pattern="[0-9]{7}">
     <button type="button" class="btn-zip-search" data-target="c">住所を検索</button>
   </div>
   <div class="zip-msg" id="c-zip-msg"></div>
   <div class="address-preview" id="c-address-preview"></div>
-  <span class="note">郵便番号がお分かりの場合は入力後「住所を検索」を押すと住所が自動入力されます。ご不明な場合は住所を直接ご入力ください。</span>
+  <span class="note">郵便番号はハイフンなしの7桁でご入力ください（例：9860814）。「住所を検索」を押すと町名まで自動入力され、丁目以降は番地欄に入ります。</span>
 </div>
 
           <div class="form-group">
@@ -836,7 +836,7 @@
               <input type="text" id="c-block" name="番地" required>
               <span class="input-valid-icon">✓</span>
             </div>
-            <span class="note">建物名は次に入力します。</span>
+            <span class="note">丁目からご入力ください（例：3丁目2-5）。建物名は次に入力します。</span>
           </div>
           <div class="form-group">
             <label for="c-building">建物名</label>
@@ -1109,7 +1109,7 @@
         <div id="pickup-postal-group" class="form-group hidden">
           <label for="pickup-postal">回収先の郵便番号（7桁） <span class="req">*</span></label>
           <div class="input-wrap">
-            <input type="text" id="pickup-postal" name="回収先郵便番号" maxlength="8" pattern="[\d\-]{7,8}" placeholder="例：986-0814">
+            <input type="text" id="pickup-postal" name="回収先郵便番号" maxlength="7" inputmode="numeric" pattern="[0-9]{7}" placeholder="例：9860814（ハイフンなし）">
             <span class="input-valid-icon">✓</span>
           </div>
           <div id="pickup-address-display" style="display:none;">
@@ -1922,6 +1922,10 @@
     submitBtn.disabled = true;
     submitBtn.textContent = '送信中…';
 
+    // 送信前に、住所欄の丁目以降を番地欄へ移す
+    moveChomeToBlock(pAddress, document.getElementById('p-block'));
+    moveChomeToBlock(cAddress, document.getElementById('c-block'));
+
     const data = new FormData(form);
     const dataObj = {};
     for (const [key, value] of data.entries()) {
@@ -1976,12 +1980,22 @@
   }
 
   // ---- 郵便番号 auto-hyphen ----
-  function autoHyphenZip(input) {
-    let v = input.value.replace(/\D/g, '').slice(0, 7);
-    if (v.length > 3) v = v.slice(0,3) + '-' + v.slice(3);
-    input.value = v;
+  // 郵便番号はハイフンなしの数字7桁で保持する（取り込み時に区切りが混ざらないように）
+  function normalizeZip(input) {
+    input.value = input.value.replace(/[^0-9]/g, '').slice(0, 7);
   }
 
+
+  // 住所欄に丁目まで入っていたら、丁目以降を番地欄へ移す（取り込みで住所に丁目が混ざるのを防ぐ）
+  // 例：宮城県石巻市恵み野3丁目 → 住所=宮城県石巻市恵み野 ／ 番地=3丁目
+  function moveChomeToBlock(addressEl, blockEl) {
+    if (!addressEl || !blockEl) return;
+    const m = addressEl.value.match(/^(.*?)([0-9０-９一二三四五六七八九十]+丁目.*)$/);
+    if (!m || !m[1].trim()) return;
+    addressEl.value = m[1].trim();
+    const rest = m[2].trim();
+    blockEl.value  = blockEl.value.trim() ? (rest + blockEl.value.trim()) : rest;
+  }
 
   // 入力欄にイベント登録
   steps.forEach(step => {
@@ -1991,14 +2005,26 @@
     });
   });
 
+  // 住所を「町名まで」と「丁目以降」に分ける
+  // 例：宮城県石巻市恵み野三丁目 → 住所=宮城県石巻市恵み野 ／ 番地=三丁目
+  function splitTownChome(r) {
+    const pref = r.address1 || '';
+    const city = r.address2 || '';
+    let town   = r.address3 || '';
+    let chome  = '';
+    const m = town.match(/^(.*?)([0-9０-９一二三四五六七八九十]+丁目.*)$/);
+    if (m && m[1]) { town = m[1]; chome = m[2]; }
+    return { base: pref + city + town, rest: chome };
+  }
+
    // 郵便番号：ボタン方式で住所検索（ブロックはしない＝あくまで補助）
-  function setupZipInput(prefix, zipEl, addressEl, previewEl) {
+  function setupZipInput(prefix, zipEl, addressEl, previewEl, blockEl) {
     if (!zipEl) return;
     const msgEl = document.getElementById(prefix + '-zip-msg');
 
     // 番号を打ち直したら「確定済み」表示をリセット（打ち直し忘れの注意喚起）
     zipEl.addEventListener('input', () => {
-      autoHyphenZip(zipEl);
+      normalizeZip(zipEl);
       if (msgEl) { msgEl.textContent = ''; msgEl.className = 'zip-msg'; }
       if (previewEl) previewEl.classList.remove('visible');
       updateNext();
@@ -2022,15 +2048,18 @@
         .then(r => r.json())
         .then(json => {
           if (json.results && json.results[0]) {
-            const r = json.results[0];
-            const addr = r.address1 + r.address2 + r.address3;
-            if (addressEl) addressEl.value = addr;
+            const r  = json.results[0];
+            const sp = splitTownChome(r);
+            if (addressEl) addressEl.value = sp.base;
+            if (sp.rest && blockEl && !blockEl.value) blockEl.value = sp.rest;
             if (previewEl) {
-              previewEl.textContent = '📍 ' + addr;
+              previewEl.textContent = '📍 ' + sp.base + (sp.rest ? '／ 番地欄：' + sp.rest : '');
               previewEl.classList.add('visible');
             }
             if (msgEl) {
-              msgEl.textContent = '住所を入力しました。番地・建物名をご確認ください。';
+              msgEl.textContent = sp.rest
+                ? '住所を『' + sp.base + '』『' + sp.rest + '』に分けて入力しました。続きの番地・建物名をご確認ください。'
+                : '住所を入力しました。丁目・番地・建物名をご確認ください。';
               msgEl.className = 'zip-msg ok visible';
             }
           } else {
@@ -2054,8 +2083,15 @@
         });
     });
   }
-  setupZipInput('p', pZip, pAddress, document.getElementById('p-address-preview'));
-  setupZipInput('c', cZip, cAddress, document.getElementById('c-address-preview'));
+  [['p', pAddress, 'p-block'], ['c', cAddress, 'c-block']].forEach(function(t){
+    const addrEl = t[1], blkEl = document.getElementById(t[2]);
+    if (addrEl && blkEl) {
+      addrEl.addEventListener('blur', function(){ moveChomeToBlock(addrEl, blkEl); updateNext(); });
+    }
+  });
+
+  setupZipInput('p', pZip, pAddress, document.getElementById('p-address-preview'), document.getElementById('p-block'));
+  setupZipInput('c', cZip, cAddress, document.getElementById('c-address-preview'), document.getElementById('c-block'));
 
 
   // 日数 +/- ボタン
@@ -2170,7 +2206,7 @@
 
   // 回収先郵便番号の入力
   pickupPostalInput.addEventListener('input', e => {
-    autoHyphenZip(pickupPostalInput);
+    normalizeZip(pickupPostalInput);
     const raw = pickupPostalInput.value.replace(/\D/g, '');
     if (raw.length === 7) {
       fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${raw}`)
