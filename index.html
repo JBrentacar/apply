@@ -1508,9 +1508,9 @@
   }
 
   // ===== 配送可能枠（Firestore の設定を読む） =====
-  // rentacar/delivery_slots/items/{YYYY-MM-DD} = { closed:bool, slots:[...], memo:"..." }
+  // rentacar/delivery_slots/items/{YYYY-MM-DD} = { date, closed:bool, slots:[...], memo:"..." }
   const SLOT_COLLECTION = ["rentacar","delivery_slots","items"];
-  const SLOT_CACHE = {};   // date -> {closed, slots, memo}
+  const SLOT_CACHE = {};
 
   function defaultSlots() {
     const arr = [];
@@ -1534,57 +1534,69 @@
     return el;
   }
 
-  async function loadSlots(date) {
-    if (!date) return null;
-    if (SLOT_CACHE[date] !== undefined) return SLOT_CACHE[date];
+  // 戻り値: { status:'ok'|'none'|'error', data?, error? }
+  async function fetchSlots(date) {
+    if (!date) return { status:'none' };
+    if (SLOT_CACHE[date]) return { status:'ok', data: SLOT_CACHE[date] };
     try {
-      const ref = doc(fbDb, SLOT_COLLECTION[0], SLOT_COLLECTION[1], SLOT_COLLECTION[2], date);
-      const snap = await getDoc(ref);
-      SLOT_CACHE[date] = snap.exists()
-        ? { closed: !!snap.data().closed, slots: Array.isArray(snap.data().slots) ? snap.data().slots : [], memo: snap.data().memo || "" }
-        : null;
+      const snap = await getDoc(doc(fbDb, SLOT_COLLECTION[0], SLOT_COLLECTION[1], SLOT_COLLECTION[2], date));
+      if (!snap.exists()) return { status:'none' };
+      const v = snap.data();
+      const d = {
+        closed: !!v.closed,
+        slots: Array.isArray(v.slots) ? v.slots : [],
+        memo: v.memo || ""
+      };
+      SLOT_CACHE[date] = d;
+      return { status:'ok', data: d };
     } catch (e) {
       console.warn('配送枠の取得に失敗', e);
-      return undefined;   // 失敗。キャッシュしない
+      return { status:'error', error: (e && (e.code || e.message)) || 'unknown' };
     }
-    return SLOT_CACHE[date];
   }
 
-  // 配送時間プルダウン（設定された枠だけを表示。設定が無ければ従来どおりの仮枠）
-  async function populateDeliveryTimes() {
+  async function populateDeliveryTimes(force) {
+    if (!delTimeSel) return;
     const date = document.getElementById('start-date').value;
     const note = slotNoteEl();
+    if (force) delete SLOT_CACHE[date];
+
     delTimeSel.innerHTML = '<option value="">読み込み中…</option>';
     delTimeSel.disabled = true;
-
-    const cfg = await loadSlots(date);
+    const r = await fetchSlots(date);
     delTimeSel.innerHTML = '<option value="">選択してください</option>';
     delTimeSel.disabled = false;
 
-    if (cfg === undefined) {
-      // 取得失敗（権限など）→ 従来の枠で継続。運用は止めない
+    if (r.status === 'error') {
       defaultSlots().forEach(t => delTimeSel.insertAdjacentHTML('beforeend', `<option value="${t}">${t}</option>`));
-      if (note) note.textContent = '';
+      if (note) note.textContent = '配送枠の取得に失敗しました（' + r.error + '）。標準の時間枠を表示しています。';
       return;
     }
 
-    if (cfg === null) {
-      // その日の設定がまだ無い → 従来の枠
+    if (r.status === 'none') {
       defaultSlots().forEach(t => delTimeSel.insertAdjacentHTML('beforeend', `<option value="${t}">${t}</option>`));
-      if (note) note.textContent = '';
+      if (note) note.textContent = 'この日の個別設定はありません（標準の時間枠を表示しています）。';
       return;
     }
 
+    const cfg = r.data;
     if (cfg.closed || !cfg.slots.length) {
       delTimeSel.insertAdjacentHTML('beforeend', '<option value="">この日は配送の空きがありません</option>');
       delTimeSel.disabled = true;
       if (note) note.textContent = cfg.memo || '別の日をご選択ください。';
       return;
     }
-
     cfg.slots.forEach(t => delTimeSel.insertAdjacentHTML('beforeend', `<option value="${t}">${t}</option>`));
     if (note) note.textContent = cfg.memo || '';
   }
+
+  // 開始日を変えたら配送枠を取り直す（開いたままでも最新が出る）
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.id === 'start-date') {
+      const grp = document.getElementById('delivery-time-group');
+      if (grp && !grp.classList.contains('hidden')) populateDeliveryTimes(true);
+    }
+  });
 
   // クイック日数選択
   document.querySelectorAll('.btn-day').forEach(btn => {
