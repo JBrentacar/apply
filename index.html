@@ -637,6 +637,9 @@
   const fbApp = initializeApp(firebaseConfig);
   const fbDb = getFirestore(fbApp);
 
+  // 通常の<script>からも使えるように公開（module内のimportは他スクリプトから見えないため）
+  window.__fs = { db: fbDb, doc, getDoc };
+
   // フォーム送信内容をFirestoreに保存する関数を、他のスクリプトから呼べるよう window に登録
   window.saveApplicationToFirestore = async function(dataObj) {
     return await addDoc(collection(fbDb, "rentacar", "applications", "items"), {
@@ -1539,7 +1542,9 @@
     if (!date) return { status:'none' };
     if (SLOT_CACHE[date]) return { status:'ok', data: SLOT_CACHE[date] };
     try {
-      const snap = await getDoc(doc(fbDb, SLOT_COLLECTION[0], SLOT_COLLECTION[1], SLOT_COLLECTION[2], date));
+      const FS = window.__fs;
+      if (!FS) return { status:'error', error:'Firebaseの初期化待ち' };
+      const snap = await FS.getDoc(FS.doc(FS.db, SLOT_COLLECTION[0], SLOT_COLLECTION[1], SLOT_COLLECTION[2], date));
       if (!snap.exists()) return { status:'none' };
       const v = snap.data();
       const d = {
