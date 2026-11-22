@@ -1081,7 +1081,7 @@
         <div id="visit-time-group" class="form-group hidden">
           <label>ご来店予定時刻 <span class="req">*</span></label>
           <select id="visit-time-select" name="来店予定時刻" required></select>
-          <span class="note">営業時間 平日 9:00〜18:00（水曜除く）／土日 10:00〜16:00（定休日：水・祝日）</span>
+          <span class="note">営業時間 平日 9:00〜18:00／土日 10:00〜16:00（来店貸出のみ）／定休日：水曜・祝日・第1第3日曜</span>
         </div>
         <div class="button-group">
           <button type="button" class="btn-prev">戻る</button>
@@ -1510,6 +1510,146 @@
     }
   }
 
+  // ===== 営業日ルール（申込フォーム・管理画面で共通） =====
+  // 定休日：水曜・祝日・第1第3日曜 ／ 土日：来店貸出のみ（配送なし）
+  // 祝日APIが取れない場合は、祝日を平日として扱います
+  const HOLI = {};        // 'YYYY-MM-DD' -> 祝日名
+  const HOL_YEAR = {};    // 年 -> true(データあり) / false(なし)
+
+  // 内蔵の祝日表（内閣府「国民の祝日」CSV から作成・2025〜2027年）
+  const HOL_FIXED = {
+    "2025-01-01": "元日",
+    "2025-01-13": "成人の日",
+    "2025-02-11": "建国記念の日",
+    "2025-02-23": "天皇誕生日",
+    "2025-02-24": "休日",
+    "2025-03-20": "春分の日",
+    "2025-04-29": "昭和の日",
+    "2025-05-03": "憲法記念日",
+    "2025-05-04": "みどりの日",
+    "2025-05-05": "こどもの日",
+    "2025-05-06": "休日",
+    "2025-07-21": "海の日",
+    "2025-08-11": "山の日",
+    "2025-09-15": "敬老の日",
+    "2025-09-23": "秋分の日",
+    "2025-10-13": "スポーツの日",
+    "2025-11-03": "文化の日",
+    "2025-11-23": "勤労感謝の日",
+    "2025-11-24": "休日",
+    "2026-01-01": "元日",
+    "2026-01-12": "成人の日",
+    "2026-02-11": "建国記念の日",
+    "2026-02-23": "天皇誕生日",
+    "2026-03-20": "春分の日",
+    "2026-04-29": "昭和の日",
+    "2026-05-03": "憲法記念日",
+    "2026-05-04": "みどりの日",
+    "2026-05-05": "こどもの日",
+    "2026-05-06": "休日",
+    "2026-07-20": "海の日",
+    "2026-08-11": "山の日",
+    "2026-09-21": "敬老の日",
+    "2026-09-22": "休日",
+    "2026-09-23": "秋分の日",
+    "2026-10-12": "スポーツの日",
+    "2026-11-03": "文化の日",
+    "2026-11-23": "勤労感謝の日",
+    "2027-01-01": "元日",
+    "2027-01-11": "成人の日",
+    "2027-02-11": "建国記念の日",
+    "2027-02-23": "天皇誕生日",
+    "2027-03-21": "春分の日",
+    "2027-03-22": "休日",
+    "2027-04-29": "昭和の日",
+    "2027-05-03": "憲法記念日",
+    "2027-05-04": "みどりの日",
+    "2027-05-05": "こどもの日",
+    "2027-07-19": "海の日",
+    "2027-08-11": "山の日",
+    "2027-09-20": "敬老の日",
+    "2027-09-23": "秋分の日",
+    "2027-10-11": "スポーツの日",
+    "2027-11-03": "文化の日",
+    "2027-11-23": "勤労感謝の日"
+  };
+  Object.keys(HOL_FIXED).forEach(function(k){ HOLI[k] = HOL_FIXED[k]; });
+
+  // 年別API → 全期間API → 内蔵表 の順に使う。どれも駄目なら祝日を平日として扱う
+  async function loadHolidays(y){
+    if (HOL_YEAR[y] !== undefined) return HOL_YEAR[y];
+    let ok = Object.keys(HOL_FIXED).some(function(k){ return k.indexOf(y + '-') === 0; });
+    try {
+      const r = await fetch('https://holidays-jp.github.io/api/v1/' + y + '.json');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      Object.keys(j || {}).forEach(function(k){ HOLI[k] = j[k]; });
+      ok = true;
+    } catch (err1) {
+      try {
+        const r2 = await fetch('https://holidays-jp.github.io/api/v1/date.json');
+        if (!r2.ok) throw new Error('HTTP ' + r2.status);
+        const j2 = await r2.json();
+        Object.keys(j2 || {}).forEach(function(k){ HOLI[k] = j2[k]; });
+        ok = true;
+      } catch (err2) {
+        console.warn('祝日APIを取得できませんでした。内蔵の祝日表で判定します。', err2);
+      }
+    }
+    HOL_YEAR[y] = ok;
+    return ok;
+  }
+
+  function dayRule(dateStr){
+    if (!dateStr) return { closed:false, weekend:false, delivery:true, reason:'', label:'' };
+    const pr = dateStr.split('-').map(Number);
+    const d  = new Date(pr[0], pr[1]-1, pr[2]);
+    const wd = d.getDay();
+    const hol = HOLI[dateStr];
+    if (hol) return { closed:true, weekend:false, delivery:false, reason:'祝日（' + hol + '）', label:'祝日' };
+    if (wd === 3) return { closed:true, weekend:false, delivery:false, reason:'定休日（水曜日）', label:'定休' };
+    if (wd === 0) {
+      const n = Math.ceil(d.getDate() / 7);
+      if (n === 1 || n === 3) {
+        return { closed:true, weekend:false, delivery:false,
+                 reason:'定休日（第' + n + '日曜日）', label:'定休' };
+      }
+      return { closed:false, weekend:true, delivery:false, reason:'日曜日（来店貸出のみ）', label:'来店のみ' };
+    }
+    if (wd === 6) return { closed:false, weekend:true, delivery:false, reason:'土曜日（来店貸出のみ）', label:'来店のみ' };
+    return { closed:false, weekend:false, delivery:true, reason:'', label:'配送可' };
+  }
+
+  function dateRuleNoteEl(){
+    let el = document.getElementById('date-rule-note');
+    if (!el) {
+      const base = document.getElementById('date-error');
+      el = document.createElement('div');
+      el.id = 'date-rule-note';
+      el.className = 'note';
+      el.style.marginTop = '6px';
+      el.style.display = 'none';
+      if (base && base.parentNode) base.parentNode.insertBefore(el, base.nextSibling);
+    }
+    return el;
+  }
+
+  function delSvcNoteEl(){
+    let el = document.getElementById('del-svc-note');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'del-svc-note';
+      el.className = 'note';
+      el.style.marginTop = '6px';
+      el.style.display = 'none';
+      if (delSvcGrp) delSvcGrp.appendChild(el);
+    }
+    return el;
+  }
+
+  loadHolidays(new Date().getFullYear());
+  loadHolidays(new Date().getFullYear() + 1);
+
   // ===== 配送可能枠（Firestore の設定を読む） =====
   // rentacar/delivery_slots/items/{YYYY-MM-DD} = { date, closed:bool, slots:[...], memo:"..." }
   const SLOT_COLLECTION = ["rentacar","delivery_slots","items"];
@@ -1624,28 +1764,30 @@
     return r.status === 'ok' && (r.data.closed || !r.data.slots.length);
   }
 
-  // 利用開始日チェック（水曜・祝日・配送受付停止日）
+  // 利用開始日チェック（定休日・土日・配送受付停止日）
   document.getElementById('start-date').addEventListener('change', async e => {
     const selDate = e.target.value;
     const errP    = document.getElementById('date-error');
+    const noteEl  = dateRuleNoteEl();
     let errText   = '';
-    const day = new Date(selDate).getDay();
-    if (day === 3) {
-      errText = 'ご選択した日は定休日（水曜日）です。別日を選択してください。';
-    } else {
-      try {
-        const year = selDate.slice(0, 4);
-        const res  = await fetch(`https://holidays-jp.github.io/api/v1/${year}.json`);
-        const data = await res.json();
-        if (data[selDate]) errText = `ご選択した日は「${data[selDate]}」の祝日です。別日を選択してください。`;
-      } catch {}
-      // 配送・回収を行うご利用（30日以上）で、受付停止日にあたる場合は選択時点で止める
-      if (!errText && daysInput && +daysInput.value >= 30) {
-        if (await isClosedDay(selDate)) {
-          errText = 'ご選択した日は配送・回収の受付を停止しています。別日を選択してください。';
-        }
+    let noteText  = '';
+
+    await loadHolidays(String(selDate).slice(0, 4));
+    const rule = dayRule(selDate);
+
+    if (rule.closed) {
+      errText = 'ご選択した日は' + rule.reason + 'です。別日を選択してください。';
+    } else if (rule.weekend && +daysInput.value >= 30) {
+      noteText = '土日は来店でのお渡しのみとなります。配送サービスはご利用いただけません。';
+    } else if (+daysInput.value >= 30) {
+      if (await isClosedDay(selDate)) {
+        errText = 'ご選択した日は配送・回収の受付を停止しています。別日を選択してください。';
       }
     }
+
+    if (noteText) { noteEl.textContent = noteText; noteEl.style.display = 'block'; }
+    else { noteEl.textContent = ''; noteEl.style.display = 'none'; }
+
     if (errText) {
       errP.textContent = errText;
       errP.classList.add('visible');
@@ -1697,15 +1839,33 @@
       } else {
         delSvcGrp.classList.remove('hidden');
         const delYesNow = document.getElementById('del-yes');
-        if (delYesNow && delYesNow.checked) {
-          // 以前「利用する」を選んだまま戻ってきた場合も、詳細と時間枠を必ず表示する
-          locGrp.classList.remove('hidden');
-          delTimeGrp.classList.remove('hidden');
-          if (document.getElementById('loc-different').checked) addrGrp.classList.remove('hidden');
-          populateDeliveryTimes(true);
-        } else if (document.getElementById('del-no').checked) {
+        const delNoNow  = document.getElementById('del-no');
+        const wNote     = delSvcNoteEl();
+        const rule      = dayRule(document.getElementById('start-date').value);
+        if (rule.weekend || rule.closed) {
+          // 土日は来店貸出のみ。配送は選べない状態にする
+          if (delYesNow) { delYesNow.checked = false; delYesNow.disabled = true; }
+          if (delNoNow)  delNoNow.checked = true;
+          wNote.textContent = rule.closed
+            ? 'この日は' + rule.reason + 'です。'
+            : '土日は来店でのお渡しのみのため、配送サービスはご利用いただけません。';
+          wNote.style.display = 'block';
           visitGrp.classList.remove('hidden');
           populateVisitTimes();
+        } else {
+          if (delYesNow) delYesNow.disabled = false;
+          wNote.textContent = '';
+          wNote.style.display = 'none';
+          if (delYesNow && delYesNow.checked) {
+            // 以前「利用する」を選んだまま戻ってきた場合も、詳細と時間枠を必ず表示する
+            locGrp.classList.remove('hidden');
+            delTimeGrp.classList.remove('hidden');
+            if (document.getElementById('loc-different').checked) addrGrp.classList.remove('hidden');
+            populateDeliveryTimes(true);
+          } else if (delNoNow && delNoNow.checked) {
+            visitGrp.classList.remove('hidden');
+            populateVisitTimes();
+          }
         }
       }
     }
